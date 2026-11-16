@@ -131,9 +131,14 @@ Notes:
 - `deploy/php-fpm-env.conf` is a snippet to append to the `[www]` section of `www.conf`, not a pool of
   its own: the service is stateless apart from the metadata cache, so it does not need a dedicated
   pool (and the other sites on this box share `[www]`).
-- The vhost is HTTP-only on purpose: `certbot --nginx` adds the `listen 443` server and the
-  `80 -> 443` redirect the same way it did for the other domains.
+- `staticphp.sh` is proxied by Cloudflare, exactly like `dl.static-php.dev` and
+  `phpmirror.static-php.dev` (both resolve to Cloudflare and keep a Certbot certificate on this
+  origin). Install the vhost as plain HTTP first so the `HTTP-01` challenge reaches the origin, then
+  `certbot --nginx` adds the `listen 443` server the same way it did for those two domains.
+  Keep the zone's SSL mode at Full / Full (strict); with Flexible, the Certbot redirect would loop.
 - `/var/cache/staticphp-sh` must stay writable by `www-data`; it only holds the 300 s metadata cache.
+- Optional: a Cloudflare cache rule for `/api/fetch` can absorb the redirects at the edge (the
+  responses already carry `Cache-Control: public, max-age=300`).
 ### Configuration
 
 | Env | Default | Meaning |
