@@ -95,8 +95,10 @@ nothing beyond a stock PowerShell 5.1+ (PowerShell client).
 
 ## Deployment
 
-The domain points at `23.95.166.169` (Debian 12, nginx + php8.2-fpm). Deploy the files, then the two
-config snippets from `deploy/`:
+The domain points at `23.95.166.169` (Debian 12, nginx + php8.4-fpm with a single `[www]` pool on
+`/var/run/php/php8.4-fpm.sock`, vhosts in `/etc/nginx/conf.d/`, Certbot-managed TLS). The two files
+in `deploy/` follow the conventions of the existing vhosts there (`dl.static-php.dev`,
+`phpmirror.static-php.dev`).
 
 ```bash
 # 1) files
@@ -104,19 +106,18 @@ sudo mkdir -p /var/www/staticphp.sh
 sudo rsync -a --delete public/ /var/www/staticphp.sh/public/
 sudo chown -R www-data:www-data /var/www/staticphp.sh
 
-# 2) nginx vhost
-sudo cp deploy/nginx-staticphp.sh.conf /etc/nginx/sites-available/staticphp.sh
-sudo ln -sf /etc/nginx/sites-available/staticphp.sh /etc/nginx/sites-enabled/staticphp.sh
+# 2) vhost + per-domain logs
 sudo mkdir -p /var/log/nginx/staticphp.sh
+sudo cp deploy/nginx-staticphp.sh.conf /etc/nginx/conf.d/staticphp.sh.conf
 sudo nginx -t && sudo systemctl reload nginx
 
-# 3) dedicated php-fpm pool + metadata cache
-sudo cp deploy/php-fpm-pool.conf /etc/php/8.2/fpm/pool.d/staticphp-sh.conf
-sudo mkdir -p /var/cache/staticphp-sh /var/log/php
+# 3) php-fpm environment (this box has one php8.4-fpm pool; php-fpm clears the environment)
+sudo mkdir -p /var/cache/staticphp-sh
 sudo chown www-data:www-data /var/cache/staticphp-sh
-sudo php-fpm8.2 -t && sudo systemctl reload php8.2-fpm
+sudo tee -a /etc/php/8.4/fpm/pool.d/www.conf < deploy/php-fpm-env.conf
+sudo php-fpm8.4 -t && sudo systemctl reload php8.4-fpm
 
-# 4) TLS
+# 4) TLS (rewrites the vhost, like the other domains on this box)
 sudo certbot --nginx -d staticphp.sh
 
 # 5) verify
@@ -125,6 +126,14 @@ curl -sI 'https://staticphp.sh/api/fetch?combination=common&version=8.4' | head 
 BASE=https://staticphp.sh tests/smoke.sh
 ```
 
+Notes:
+
+- `deploy/php-fpm-env.conf` is a snippet to append to the `[www]` section of `www.conf`, not a pool of
+  its own: the service is stateless apart from the metadata cache, so it does not need a dedicated
+  pool (and the other sites on this box share `[www]`).
+- The vhost is HTTP-only on purpose: `certbot --nginx` adds the `listen 443` server and the
+  `80 -> 443` redirect the same way it did for the other domains.
+- `/var/cache/staticphp-sh` must stay writable by `www-data`; it only holds the 300 s metadata cache.
 ### Configuration
 
 | Env | Default | Meaning |
