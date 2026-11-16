@@ -13,7 +13,8 @@
     PHP minor line (8.2, 8.3, 8.4, 8.5), an exact patch such as 8.3.36, or latest. Default: latest.
 
 .PARAMETER Combination
-    minimal, common, bulk, gnu-bulk, spc-min or spc-max. Default: common.
+    minimal, common, bulk, gnu-bulk, spc-min or spc-max.
+    Default: spc-max on Windows, common everywhere else.
 
 .PARAMETER Sapi
     cli, micro or fpm (fpm is not published for Windows). Default: cli.
@@ -56,7 +57,7 @@ param(
     [string]$Version = 'latest',
 
     [ValidateSet('minimal', 'common', 'bulk', 'gnu-bulk', 'spc-min', 'spc-max')]
-    [string]$Combination = 'common',
+    [string]$Combination = '',
 
     [ValidateSet('cli', 'micro', 'fpm')]
     [string]$Sapi = 'cli',
@@ -121,6 +122,13 @@ if ($Arch -notin @('x86_64', 'aarch64')) {
 }
 if ($Os -eq 'windows' -and $Arch -ne 'x86_64') {
     Stop-WithError 'Windows binaries are only published for x86_64'
+}
+
+# The published combinations differ per platform: the unix sets (minimal/common/bulk/gnu-bulk)
+# are not published for Windows, and the Windows sets (spc-min/spc-max) are not published elsewhere,
+# so the default follows the requested OS.
+if (-not $Combination) {
+    if ($Os -eq 'windows') { $Combination = 'spc-max' } else { $Combination = 'common' }
 }
 
 # Metadata keys platforms as <os>-<arch>, "win" for Windows and <os>-<arch>-gnu for gnu-bulk,

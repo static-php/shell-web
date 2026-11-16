@@ -43,6 +43,19 @@ try {
         if ($res.version) { Pass "version $($res.version)" } else { Fail-Check 'version missing' }
     }
 
+    Write-Host "== default combination follows the OS =="
+    $dflt = & $script -Version 8.3 -Json
+    if ($LASTEXITCODE -eq 0) {
+        $dfltRes = $dflt | ConvertFrom-Json
+        if ($dfltRes.combination -eq 'spc-max' -and $dfltRes.file -like '*-win.zip') {
+            Pass "no -Combination resolves to spc-max on Windows"
+        } else {
+            Fail-Check "default combination is '$($dfltRes.combination)' ($($dfltRes.file))"
+        }
+    } else {
+        Fail-Check "default resolution exited $LASTEXITCODE"
+    }
+
     Write-Host "== resolve (redirect API) =="
     $apiRaw = & $script -Api $Api -Version 8.3 -Combination spc-min -Sapi micro -Json 2>$null
     if ($LASTEXITCODE -eq 0) {

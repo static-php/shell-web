@@ -8,7 +8,8 @@
 #
 # Options:
 #   -v, --version VERSION    8.2 | 8.3 | 8.4 | 8.5, an exact patch (8.3.36) or latest   (default: latest)
-#   -c, --combination NAME   minimal | common | bulk | gnu-bulk | spc-min | spc-max    (default: common)
+#   -c, --combination NAME   minimal | common | bulk | gnu-bulk | spc-min | spc-max
+#                            (default: spc-max on Windows, common elsewhere)
 #   -s, --sapi NAME          cli | micro | fpm                                         (default: cli)
 #   -o, --os NAME            linux | macos | windows                                   (default: autodetect)
 #   -a, --arch NAME          x86_64 | aarch64                                          (default: autodetect)
@@ -25,7 +26,7 @@ set -euo pipefail
 API="${PHP_BIN_API:-https://staticphp.sh}"
 BASE="${PHP_BIN_BASE:-https://dl.static-php.dev/v3/php-bin}"
 
-COMBINATION=common
+COMBINATION=""
 VERSION=latest
 SAPI=cli
 OS=""
@@ -59,7 +60,6 @@ done
 need curl
 need jq
 [ -n "$VERSION" ] || die "missing --version"
-[ -n "$COMBINATION" ] || die "missing --combination"
 [ -n "$SAPI" ] || die "missing --sapi"
 
 # ---- platform detection -------------------------------------------------------------
@@ -77,6 +77,12 @@ if [ -z "$ARCH" ]; then
     aarch64|arm64) ARCH=aarch64 ;;
     *) die "unsupported architecture '$(uname -m)'; pass --arch" ;;
   esac
+fi
+
+# The published combinations differ per platform: minimal/common/bulk/gnu-bulk are not published for
+# Windows, spc-min/spc-max only exist there, so the default follows the requested OS.
+if [ -z "$COMBINATION" ]; then
+  if [ "$OS" = windows ]; then COMBINATION=spc-max; else COMBINATION=common; fi
 fi
 
 # Metadata keys platforms as <os>-<arch>, "win" for Windows and <os>-<arch>-gnu for gnu-bulk,

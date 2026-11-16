@@ -29,7 +29,7 @@ GET /fetch.php?combination=bulk&version=8.3&os=linux&arch=aarch64&sapi=cli&forma
 
 | Name | Values | Default |
 |---|---|---|
-| `combination` | `minimal` `common` `bulk` `gnu-bulk` `spc-min` `spc-max` | `common` |
+| `combination` | `minimal` `common` `bulk` `gnu-bulk` `spc-min` `spc-max` | `common` (the endpoint cannot know the client OS; the client scripts pick `spc-max` on Windows) |
 | `version` | `8.2` `8.3` `8.4` `8.5`, an exact patch (`8.3.36`) or `latest` | `latest` |
 | `os` | `linux` `macos` `windows` | `linux` |
 | `arch` | `x86_64` `aarch64` (`amd64`, `x64`, `arm64` accepted) | `x86_64` |

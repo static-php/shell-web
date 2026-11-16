@@ -112,6 +112,15 @@ curl -s -o /dev/null "$(api 'combination=bulk&version=8.3&format=json')"
 cache=$(curl -s -D - -o /dev/null "$(api 'combination=bulk&version=8.3&format=json')" | tr -d '\r' | awk -F': ' 'tolower($1)=="x-php-bin-cache"{print $2}')
 [ "$cache" = "hit" ] && ok "metadata served from cache" || bad "metadata cache ($cache)"
 
+echo "== fetch.sh default combination follows the OS =="
+win=$(PHP_BIN_API="$BASE" bash "$PUBLIC/fetch.sh" -o windows -a x86_64 -v 8.3 --json 2>/dev/null | jq -r '.combination + " " + .file')
+case "$win" in
+  "spc-max "*.zip) ok "windows default resolves to spc-max ($win)" ;;
+  *) bad "windows default combination ($win)" ;;
+esac
+loc=$(PHP_BIN_API="$BASE" bash "$PUBLIC/fetch.sh" -v 8.3 --json 2>/dev/null | jq -r '.combination')
+[ "$loc" = "common" ] && ok "unix default resolves to common" || bad "unix default combination ($loc)"
+
 echo "== fetch.sh end to end (resolve only) =="
 if PHP_BIN_API="$BASE" bash "$PUBLIC/fetch.sh" -v 8.3 -c bulk -s cli --json > "$TMP/res.json" 2>"$TMP/res.err"; then
   jq -e '.file' "$TMP/res.json" >/dev/null && ok "fetch.sh resolved via API" || bad "fetch.sh output not JSON"
