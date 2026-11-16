@@ -89,8 +89,12 @@ expect 404 "$(api 'combination=does-not-exist')" "unknown combination"
 expect 404 "$(api 'combination=spc-max&version=8.3&sapi=fpm')" "windows has no fpm"
 expect 404 "$(api 'combination=gnu-bulk&os=macos&version=8.3')" "gnu-bulk is linux only"
 expect 404 "$(api 'combination=minimal&version=8.0')" "minor not published"
+# 405 when PHP answers, 403 when the vhost denies non-GET before PHP (nginx limit_except).
 got=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$(api 'combination=common')")
-[ "$got" = "405" ] && ok "POST rejected (405)" || bad "POST rejected (got $got)"
+case "$got" in
+  405|403) ok "POST rejected ($got)" ;;
+  *) bad "POST rejected (got $got)" ;;
+esac
 expect 200 "$BASE/" "usage page"
 expect 200 "$BASE/health" "health"
 
