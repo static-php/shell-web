@@ -85,6 +85,28 @@ if [ -z "$COMBINATION" ]; then
   if [ "$OS" = windows ]; then COMBINATION=spc-max; else COMBINATION=common; fi
 fi
 
+# The published combinations and SAPIs differ per platform: fail with an actionable message instead
+# of a 404 from the endpoint.
+case "$OS" in
+  windows)
+    case "$COMBINATION" in
+      spc-min|spc-max) ;;
+      *) die "combination '$COMBINATION' is not published for Windows; use spc-min or spc-max (default: spc-max)" ;;
+    esac
+    if [ "$SAPI" = fpm ]; then
+      die "the fpm SAPI is not published for Windows; use cli or micro"
+    fi
+    ;;
+  *)
+    case "$COMBINATION" in
+      spc-min|spc-max) die "combination '$COMBINATION' is Windows-only; use minimal, common, bulk or gnu-bulk" ;;
+    esac
+    if [ "$COMBINATION" = gnu-bulk ] && [ "$OS" != linux ]; then
+      die "gnu-bulk is published for Linux only"
+    fi
+    ;;
+esac
+
 # Metadata keys platforms as <os>-<arch>, "win" for Windows and <os>-<arch>-gnu for gnu-bulk,
 # while the archive file name keeps the plain <os>-<arch> suffix.
 case "$OS" in

@@ -60,11 +60,17 @@ curl -fsSLO https://staticphp.sh/fetch.sh && chmod +x fetch.sh
 ./fetch.sh -v 8.3 -c bulk -s micro -e     # download micro.sfx and unpack it
 ./fetch.sh --direct --json                # resolve from dl.static-php.dev metadata only
 
-# PowerShell (Windows PowerShell 5.1 and 7+ on Windows, Linux and macOS)
+# PowerShell: targets Windows, so the defaults are spc-max / cli
 iwr -useb https://staticphp.sh/fetch.ps1 -OutFile fetch.ps1
+.\fetch.ps1 -Version 8.3                       # spc-max (Windows) cli
 .\fetch.ps1 -Version 8.3 -Combination spc-min -Extract
 .\fetch.ps1 -Version 8.3 -Direct -Json
 ```
+
+The default combination follows the requested OS — `spc-max` on Windows, `common` elsewhere — because
+the unix sets (`minimal`, `common`, `bulk`, `gnu-bulk`) are not published for Windows and the Windows
+sets (`spc-min`, `spc-max`) only exist there. A combination that cannot exist on the target platform
+is rejected before any request is made.
 
 Both scripts resolve through the API first and fall back to the published metadata when the API is
 unreachable (or answers with a non-JSON page), so the redirects never become a hard dependency.

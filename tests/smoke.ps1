@@ -87,11 +87,23 @@ try {
         }
     }
 
+    Write-Host "== rejects cross-platform combinations early =="
+    $cases = @(
+        @{ Args = @('-Combination', 'bulk'); Match = 'not published for Windows'; Label = 'bulk on windows' },
+        @{ Args = @('-Sapi', 'fpm'); Match = 'fpm SAPI is not published'; Label = 'fpm on windows' },
+        @{ Args = @('-Combination', 'spc-max', '-Os', 'linux'); Match = 'Windows-only'; Label = 'spc-max on linux' }
+    )
+    foreach ($case in $cases) {
+        $out = & $childExe @childArgs -Version 8.3 @($case.Args) -Json 2>&1
+        if ($LASTEXITCODE -ne 0 -and "$out" -match $case.Match) { Pass $case.Label }
+        else { Fail-Check "$($case.Label) not rejected ($LASTEXITCODE): $out" }
+    }
+
     Write-Host "== error handling =="
     $out = & $childExe @childArgs -Version 8.3.99 -Combination spc-min -Direct -Json 2>&1
     if ($LASTEXITCODE -ne 0 -and "$out" -match 'newest patch') { Pass 'unknown patch is refused' } else { Fail-Check "unknown patch not refused ($LASTEXITCODE): $out" }
     $out = & $childExe @childArgs -Combination common -Direct -Json 2>&1
-    if ($LASTEXITCODE -ne 0 -and "$out" -match 'does not publish') { Pass 'wrong platform is refused' } else { Fail-Check "wrong platform not refused ($LASTEXITCODE): $out" }
+    if ($LASTEXITCODE -ne 0 -and "$out" -match 'not published for Windows') { Pass 'wrong platform is refused' } else { Fail-Check "wrong platform not refused ($LASTEXITCODE): $out" }
 }
 finally {
     Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue

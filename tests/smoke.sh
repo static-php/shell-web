@@ -125,6 +125,23 @@ esac
 loc=$(PHP_BIN_API="$BASE" bash "$PUBLIC/fetch.sh" -v 8.3 --json 2>/dev/null | jq -r '.combination')
 [ "$loc" = "common" ] && ok "unix default resolves to common" || bad "unix default combination ($loc)"
 
+echo "== fetch.sh rejects cross-platform combinations early =="
+# check_reject <expected message fragment> <label> <fetch.sh args...>
+check_reject() {
+  local expect=$1 label=$2 out rc
+  shift 2
+  out=$(PHP_BIN_API="$BASE" bash "$PUBLIC/fetch.sh" "$@" --json 2>&1); rc=$?
+  if [ "$rc" -ne 0 ] && printf '%s' "$out" | grep -qi -- "$expect"; then
+    ok "$label"
+  else
+    bad "$label (rc=$rc, output: $(printf '%s' "$out" | head -1))"
+  fi
+}
+check_reject "not published for Windows" "bulk on windows" -o windows -a x86_64 -c bulk -v 8.3
+check_reject "fpm SAPI is not published" "fpm on windows" -o windows -a x86_64 -s fpm -v 8.3
+check_reject "Windows-only" "spc-max on unix" -c spc-max -v 8.3
+check_reject "Linux only" "gnu-bulk on macos" -o macos -c gnu-bulk -v 8.3
+
 echo "== fetch.sh end to end (resolve only) =="
 if PHP_BIN_API="$BASE" bash "$PUBLIC/fetch.sh" -v 8.3 -c bulk -s cli --json > "$TMP/res.json" 2>"$TMP/res.err"; then
   jq -e '.file' "$TMP/res.json" >/dev/null && ok "fetch.sh resolved via API" || bad "fetch.sh output not JSON"

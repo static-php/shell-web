@@ -30,8 +30,11 @@ GET /fetch.php?combination=common&amp;version=8.4&amp;os=linux&amp;arch=x86_64&a
 </table>
 
 <h2>Client scripts</h2>
-<pre>curl -fsSLO https://staticphp.sh/fetch.sh    &amp;&amp; chmod +x fetch.sh &amp;&amp; ./fetch.sh -v 8.4 -c bulk
-iwr -useb https://staticphp.sh/fetch.ps1 -OutFile fetch.ps1; .\fetch.ps1 -Version 8.4 -Combination bulk</pre>
+<pre># Linux / macOS: the shell client defaults to the unix combinations
+curl -fsSLO https://staticphp.sh/fetch.sh &amp;&amp; chmod +x fetch.sh &amp;&amp; ./fetch.sh -v 8.4 -c bulk
+
+# Windows: the PowerShell client defaults to spc-max, the Windows combination
+iwr -useb https://staticphp.sh/fetch.ps1 -OutFile fetch.ps1; .\fetch.ps1 -Version 8.4</pre>
 
 <h2>Examples</h2>
 <pre>curl -fL -o php "https://staticphp.sh/fetch.php?combination=bulk&amp;version=8.3&amp;os=linux&amp;arch=aarch64&amp;sapi=cli"
