@@ -92,7 +92,7 @@ esac
 # Anything else (5xx, DNS, timeout) is an outage: return 1 so the caller falls back.
 resolve_via_api() {
   local url out code body
-  url="$API/api/fetch?combination=$COMBINATION&version=$VERSION&os=$OS&arch=$ARCH&sapi=$SAPI&format=json"
+  url="$API/fetch.php?combination=$COMBINATION&version=$VERSION&os=$OS&arch=$ARCH&sapi=$SAPI&format=json"
   out=$(curl -s --max-time 20 --retry 2 -w '\n%{http_code}' "$url") || return 1
   code=${out##*$'\n'}
   body=${out%$'\n'*}

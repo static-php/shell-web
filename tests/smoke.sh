@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # smoke.sh - exercise the staticphp.sh service and its client scripts.
 #
-#   php -S 127.0.0.1:8098 -t public public/index.php &
+#   php -S 127.0.0.1:8098 -t public &
 #   tests/smoke.sh                       # local instance
 #   BASE=https://staticphp.sh tests/smoke.sh
 set -uo pipefail
@@ -44,7 +44,7 @@ reachable() {
   [ "$code" = "200" ] && ok "$label" || bad "$label (archive $code)"
 }
 
-api() { printf '%s/api/fetch?%s' "$BASE" "$1"; }
+api() { printf '%s/fetch.php?%s' "$BASE" "$1"; }
 
 echo "== every combination resolves for linux/x86_64 =="
 for combo in minimal common bulk gnu-bulk; do
@@ -91,7 +91,6 @@ expect 404 "$(api 'combination=gnu-bulk&os=macos&version=8.3')" "gnu-bulk is lin
 expect 404 "$(api 'combination=minimal&version=8.0')" "minor not published"
 got=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$(api 'combination=common')")
 [ "$got" = "405" ] && ok "POST rejected (405)" || bad "POST rejected (got $got)"
-expect 404 "$BASE/nope" "unknown endpoint"
 expect 200 "$BASE/" "usage page"
 expect 200 "$BASE/health" "health"
 

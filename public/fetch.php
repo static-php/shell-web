@@ -3,19 +3,19 @@
 declare(strict_types=1);
 
 /**
- * staticphp.sh - single-file endpoint for the StaticPHP prebuilt binaries.
+ * fetch.php - single-file endpoint for the StaticPHP prebuilt binaries (staticphp.sh).
  *
- *   GET /api/fetch?combination=common&version=8.4&os=linux&arch=x86_64&sapi=cli
+ *   GET /fetch.php?combination=common&version=8.4&os=linux&arch=x86_64&sapi=cli
  *       -> 302 https://dl.static-php.dev/v3/php-bin/common/php-8.4.27-1-cli-linux-x86_64.tar.gz
- *   GET /api/fetch?...&format=json
+ *   GET /fetch.php?...&format=json
  *       -> 200 {version, file, size, sha256, url, ...}
- *   GET /fetch.sh, /fetch.ps1
- *       -> the client scripts (also served directly by nginx when they exist in the docroot)
- *   GET /, /health
  *
  * The published layout lives in dl.static-php.dev/v3/php-bin/<combination>/version_<MM>.json.
  * Artifacts and revisions are tracked per platform, so the file name always comes from
  * artifacts.<platform>.<sapi>.file; the top level "revision" must not be used to build one.
+ *
+ * A real .php file keeps the web server trivial: it matches the ordinary PHP location, without a
+ * front controller or any try_files rewriting.
  */
 
 const DEFAULT_BASE = 'https://dl.static-php.dev/v3/php-bin';
@@ -33,8 +33,6 @@ const ARCH_ALIASES = [
     'arm64' => 'aarch64',
     'aarch64' => 'aarch64',
 ];
-
-const ASSETS = ['/fetch.sh' => 'text/plain; charset=utf-8', '/fetch.ps1' => 'text/plain; charset=utf-8'];
 
 function env(string $name, string $default): string
 {
@@ -167,62 +165,10 @@ function fail(int $status, string $error, string $message, array $hints = []): v
     respond_json($status, ['error' => $error, 'message' => $message] + ($hints ? ['hint' => $hints] : []));
 }
 
-function usage_html(): string
-{
-    return <<<HTML
-<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>StaticPHP prebuilt PHP</title>
-<style>body{font:15px/1.6 system-ui,sans-serif;max-width:48rem;margin:3rem auto;padding:0 1rem}
-code{background:#f3f3f3;padding:.1rem .3rem;border-radius:3px}pre{background:#f6f8fa;padding:1rem;overflow:auto}
-td,th{padding:.2rem .6rem;text-align:left}</style>
-</head><body>
-<h1>StaticPHP prebuilt PHP</h1>
-<p>One endpoint that redirects to the newest published static PHP binary on
-<a href="https://dl.static-php.dev/v3/php-bin/">dl.static-php.dev</a>.</p>
-<pre>GET /api/fetch?combination=common&amp;version=8.4&amp;os=linux&amp;arch=x86_64&amp;sapi=cli
-GET /api/fetch?combination=common&amp;version=8.4&amp;os=linux&amp;arch=x86_64&amp;sapi=cli&amp;format=json</pre>
-<h2>Parameters</h2>
-<table>
-<tr><th>name</th><th>values</th><th>default</th></tr>
-<tr><td><code>combination</code></td><td>minimal, common, bulk, gnu-bulk, spc-min, spc-max</td><td>common</td></tr>
-<tr><td><code>version</code></td><td>8.2, 8.3, 8.4, 8.5, an exact patch (8.3.36) or <code>latest</code></td><td>latest</td></tr>
-<tr><td><code>os</code></td><td>linux, macos, windows</td><td>linux</td></tr>
-<tr><td><code>arch</code></td><td>x86_64, aarch64 (amd64/arm64/x64 accepted)</td><td>x86_64</td></tr>
-<tr><td><code>sapi</code></td><td>cli, micro, fpm (fpm is unix only)</td><td>cli</td></tr>
-<tr><td><code>format</code></td><td>json returns the resolution instead of redirecting</td><td></td></tr>
-</table>
-<h2>Client scripts</h2>
-<pre>curl -fsSLO https://staticphp.sh/fetch.sh    &amp;&amp; chmod +x fetch.sh &amp;&amp; ./fetch.sh -v 8.4 -c bulk
-iwr -useb https://staticphp.sh/fetch.ps1 -OutFile fetch.ps1; .\fetch.ps1 -Version 8.4 -Combination bulk</pre>
-<h2>Examples</h2>
-<pre>curl -fL -o php "https://staticphp.sh/api/fetch?combination=bulk&amp;version=8.3&amp;os=linux&amp;arch=aarch64&amp;sapi=cli"
-curl -fsSL "https://staticphp.sh/api/fetch?combination=bulk&amp;version=8.3&amp;sapi=micro&amp;format=json"</pre>
-</body></html>
-HTML;
-}
-
-function serve_asset(string $path, string $contentType): void
-{
-    $file = __DIR__ . $path;
-    if (!is_file($file)) {
-        fail(404, 'not_found', "The script '$path' is not deployed next to this endpoint.");
-
-        return;
-    }
-    http_response_code(200);
-    header('Content-Type: ' . $contentType);
-    header('Content-Length: ' . filesize($file));
-    header('Cache-Control: public, max-age=' . CACHE_HEADER_TTL);
-    header('X-Content-Type-Options: nosniff');
-    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'HEAD') {
-        readfile($file);
-    }
-}
-
 /**
- * Resolve one published binary. Prints the response and returns.
+ * Resolve one published binary and answer with a redirect or with JSON.
  */
-function api_fetch(array $query): void
+function handle(array $query): void
 {
     $combination = strtolower(trim((string) ($query['combination'] ?? 'common')));
     $version = strtolower(trim((string) ($query['version'] ?? ($query['minor'] ?? 'latest'))));
@@ -240,7 +186,7 @@ function api_fetch(array $query): void
     }
     if ($version !== 'latest' && !preg_match('/^\d+\.\d+(?:\.\d+)?$/', $version)) {
         fail(400, 'invalid_version', 'version must be 8.4, an exact patch such as 8.4.27, or latest.', [
-            'example: /api/fetch?combination=common&version=8.4&os=linux&arch=x86_64',
+            'example: /fetch.php?combination=common&version=8.4&os=linux&arch=x86_64',
         ]);
 
         return;
@@ -379,50 +325,17 @@ function api_fetch(array $query): void
     header('Location: ' . $url, true, 302);
 }
 
-function handle(string $path, array $query): void
-{
-    $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-    if ($method === 'OPTIONS') {
-        http_response_code(204);
-        header('Access-Control-Allow-Origin: *');
-        header('Access-Control-Allow-Methods: GET, HEAD, OPTIONS');
-
-        return;
-    }
-    if ($method !== 'GET' && $method !== 'HEAD') {
-        header('Allow: GET, HEAD, OPTIONS');
-        fail(405, 'method_not_allowed', 'Only GET and HEAD are supported.');
-
-        return;
-    }
-
-    $path = '/' . trim($path, '/');
-    if ($path === '/') {
-        header('Content-Type: text/html; charset=utf-8');
-        echo usage_html();
-
-        return;
-    }
-    if ($path === '/health') {
-        header('Content-Type: text/plain; charset=utf-8');
-        echo "ok\n";
-
-        return;
-    }
-    if (isset(ASSETS[$path])) {
-        serve_asset($path, ASSETS[$path]);
-
-        return;
-    }
-    if ($path === '/api/fetch') {
-        api_fetch($query);
-
-        return;
-    }
-
-    fail(404, 'not_found', 'Unknown endpoint.', [
-        'try /api/fetch?combination=common&version=8.4 or /',
-    ]);
+$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+if ($method === 'OPTIONS') {
+    http_response_code(204);
+    header('Access-Control-Allow-Origin: *');
+    header('Access-Control-Allow-Methods: GET, HEAD, OPTIONS');
+    exit;
+}
+if ($method !== 'GET' && $method !== 'HEAD') {
+    header('Allow: GET, HEAD, OPTIONS');
+    fail(405, 'method_not_allowed', 'Only GET and HEAD are supported.');
+    exit;
 }
 
-handle(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/', $_GET);
+handle($_GET);

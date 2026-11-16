@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>StaticPHP prebuilt PHP</title>
+<style>
+  body { font: 15px/1.6 system-ui, sans-serif; max-width: 48rem; margin: 3rem auto; padding: 0 1rem; }
+  code { background: #f3f3f3; padding: .1rem .3rem; border-radius: 3px; }
+  pre { background: #f6f8fa; padding: 1rem; overflow: auto; }
+  td, th { padding: .2rem .6rem; text-align: left; }
+</style>
+</head>
+<body>
+<h1>StaticPHP prebuilt PHP</h1>
+<p>One endpoint that redirects to the newest published static PHP binary on
+<a href="https://dl.static-php.dev/v3/php-bin/">dl.static-php.dev</a>.</p>
+
+<pre>GET /fetch.php?combination=common&amp;version=8.4&amp;os=linux&amp;arch=x86_64&amp;sapi=cli
+GET /fetch.php?combination=common&amp;version=8.4&amp;os=linux&amp;arch=x86_64&amp;sapi=cli&amp;format=json</pre>
+
+<h2>Parameters</h2>
+<table>
+<tr><th>name</th><th>values</th><th>default</th></tr>
+<tr><td><code>combination</code></td><td>minimal, common, bulk, gnu-bulk, spc-min, spc-max</td><td>common</td></tr>
+<tr><td><code>version</code></td><td>8.2, 8.3, 8.4, 8.5, an exact patch (8.3.36) or <code>latest</code></td><td>latest</td></tr>
+<tr><td><code>os</code></td><td>linux, macos, windows</td><td>linux</td></tr>
+<tr><td><code>arch</code></td><td>x86_64, aarch64 (amd64/arm64/x64 accepted)</td><td>x86_64</td></tr>
+<tr><td><code>sapi</code></td><td>cli, micro, fpm (fpm is unix only)</td><td>cli</td></tr>
+<tr><td><code>format</code></td><td>json returns the resolution instead of redirecting</td><td></td></tr>
+</table>
+
+<h2>Client scripts</h2>
+<pre>curl -fsSLO https://staticphp.sh/fetch.sh    &amp;&amp; chmod +x fetch.sh &amp;&amp; ./fetch.sh -v 8.4 -c bulk
+iwr -useb https://staticphp.sh/fetch.ps1 -OutFile fetch.ps1; .\fetch.ps1 -Version 8.4 -Combination bulk</pre>
+
+<h2>Examples</h2>
+<pre>curl -fL -o php "https://staticphp.sh/fetch.php?combination=bulk&amp;version=8.3&amp;os=linux&amp;arch=aarch64&amp;sapi=cli"
+curl -fsSL "https://staticphp.sh/fetch.php?combination=bulk&amp;version=8.3&amp;sapi=micro&amp;format=json"</pre>
+
+<p>Source: <a href="https://github.com/static-php/shell-web">static-php/shell-web</a></p>
+</body>
+</html>

@@ -8,10 +8,10 @@ The archives themselves stay on `dl.static-php.dev` (immutable, CDN-cached). Thi
 *human coordinates* to *that one URL*.
 
 ```
-GET /api/fetch?combination=bulk&version=8.3&os=linux&arch=aarch64&sapi=cli
+GET /fetch.php?combination=bulk&version=8.3&os=linux&arch=aarch64&sapi=cli
     -> 302 https://dl.static-php.dev/v3/php-bin/bulk/php-8.3.36-1-cli-linux-aarch64.tar.gz
 
-GET /api/fetch?combination=bulk&version=8.3&os=linux&arch=aarch64&sapi=cli&format=json
+GET /fetch.php?combination=bulk&version=8.3&os=linux&arch=aarch64&sapi=cli&format=json
     -> 200 {"version":"8.3.36","file":"...","sha256":"...","url":"...", ...}
 ```
 
@@ -19,13 +19,13 @@ GET /api/fetch?combination=bulk&version=8.3&os=linux&arch=aarch64&sapi=cli&forma
 
 | Endpoint | Purpose |
 |---|---|
-| `GET /api/fetch` | resolve and redirect (or return JSON with `format=json`) |
+| `GET /fetch.php` | resolve and redirect (or return JSON with `format=json`) |
 | `GET /fetch.sh` | POSIX shell client (`curl … \| bash` friendly) |
 | `GET /fetch.ps1` | PowerShell client (Windows PowerShell 5.1+, PowerShell 7+) |
 | `GET /health` | `ok` for uptime checks |
-| `GET /` | short HTML usage page |
+| `GET /` | static usage page (`index.html`) |
 
-### /api/fetch parameters
+### /fetch.php parameters
 
 | Name | Values | Default |
 |---|---|---|
@@ -73,17 +73,22 @@ unreachable (or answers with a non-JSON page), so the redirects never become a h
 ## Development
 
 ```
-public/index.php   single-file endpoint (API + usage page + /health; also streams the scripts when
-                   the front controller receives those requests)
+public/fetch.php   the endpoint (single file; the only PHP that is reachable)
+public/index.html  static usage page
+public/health      static "ok" file for uptime checks
 public/fetch.sh    POSIX client
 public/fetch.ps1   PowerShell client
-tests/smoke.sh     endpoint + shell client checks (48 assertions)
+tests/smoke.sh     endpoint + shell client checks
 tests/smoke.ps1    PowerShell client checks, run on Windows (11 assertions)
 deploy/            nginx and php-fpm configuration for staticphp.sh
 ```
 
+`/fetch.php` is a real file and the usage page is static, so the web server needs no front
+controller or `try_files` rewriting: the stock PHP location is enough, and every other path is
+plain static content.
+
 ```bash
-php -S 127.0.0.1:8098 -t public public/index.php &
+php -S 127.0.0.1:8098 -t public &
 tests/smoke.sh
 
 # on Windows
@@ -122,7 +127,7 @@ sudo certbot --nginx -d staticphp.sh
 
 # 5) verify
 curl -fsS https://staticphp.sh/health
-curl -sI 'https://staticphp.sh/api/fetch?combination=common&version=8.4' | head -5
+curl -sI 'https://staticphp.sh/fetch.php?combination=common&version=8.4' | head -5
 BASE=https://staticphp.sh tests/smoke.sh
 ```
 
@@ -137,7 +142,7 @@ Notes:
   `certbot --nginx` adds the `listen 443` server the same way it did for those two domains.
   Keep the zone's SSL mode at Full / Full (strict); with Flexible, the Certbot redirect would loop.
 - `/var/cache/staticphp-sh` must stay writable by `www-data`; it only holds the 300 s metadata cache.
-- Optional: a Cloudflare cache rule for `/api/fetch` can absorb the redirects at the edge (the
+- Optional: a Cloudflare cache rule for `/fetch.php` can absorb the redirects at the edge (the
   responses already carry `Cache-Control: public, max-age=300`).
 ### Configuration
 
@@ -152,5 +157,5 @@ Notes:
 - Stateless apart from the metadata cache: a restart costs one upstream fetch.
 - `GET /health` is enough for an uptime check.
 - `X-Php-Bin-Cache: stale` in the access log means `dl.static-php.dev` is failing.
-- Optional hardening: `limit_req` on `/api/fetch` in nginx, and a Cloudflare cache rule for
-  `/api/fetch` (respecting the 300 s `Cache-Control`).
+- Optional hardening: `limit_req` on `/fetch.php` in nginx, and a Cloudflare cache rule for
+  `/fetch.php` (respecting the 300 s `Cache-Control`).

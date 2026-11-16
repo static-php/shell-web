@@ -4,7 +4,7 @@
 
 .DESCRIPTION
     Resolves the newest published build for a combination/version/platform through
-    https://staticphp.sh/api/fetch (or directly from dl.static-php.dev metadata with -Direct),
+    https://staticphp.sh/fetch.php (or directly from dl.static-php.dev metadata with -Direct),
     downloads the archive, verifies its SHA-256 checksum and optionally unpacks it.
 
     Works on Windows PowerShell 5.1 and PowerShell 7+ on Windows, Linux and macOS.
@@ -141,7 +141,7 @@ function Get-HttpStatusCode {
 # ---- resolution --------------------------------------------------------------------
 function Resolve-ViaApi {
     $query = "combination=$Combination&version=$Version&os=$Os&arch=$Arch&sapi=$Sapi&format=json"
-    $uri = "$Api/api/fetch?$query"
+    $uri = "$Api/fetch.php?$query"
     try {
         return Invoke-RestMethod -Uri $uri -TimeoutSec 20
     } catch {
